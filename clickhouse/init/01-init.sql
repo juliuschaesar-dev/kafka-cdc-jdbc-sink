@@ -7,13 +7,9 @@ CREATE DATABASE IF NOT EXISTS cdc_db;
 -- the latest version in the background; query through the *_latest views below to also
 -- get correct results between merges.
 --
--- created_at/updated_at arrive from Debezium as raw epoch microseconds (MicroTimestamp),
--- __ts_ms as raw epoch milliseconds (standard Debezium event metadata). The sink connector's
--- TimestampConverter transforms (createdAtToTimestamp/updatedAtToTimestamp/tsMsToTimestamp
--- in connectors/sink/clickhouse-sink.json) convert all three to millisecond-precision
--- Timestamps before the JDBC driver writes them here, so these columns hold real DateTime64
--- values. ReplacingMergeTree's version column works fine as DateTime64 - it just needs to
--- be orderable.
+-- created_at/updated_at/__ts_ms are typed as real DateTime64(3) here, not the raw epoch
+-- numbers Debezium emits on the wire — the sink connector converts them before insert
+-- (see connectors/sink/clickhouse-sink.json).
 
 CREATE TABLE IF NOT EXISTS cdc_db.customers
 (
