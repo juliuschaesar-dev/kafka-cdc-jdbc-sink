@@ -1,0 +1,43 @@
+{
+  "name": "clickhouse-sink",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+
+    "topics": "pg1.public.customers,pg1.public.orders",
+    "connection.url": "jdbc:clickhouse://clickhouse:8123/${env:CLICKHOUSE_DB}",
+    "connection.user": "${env:CLICKHOUSE_USER}",
+    "connection.password": "${env:CLICKHOUSE_PASSWORD}",
+
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schema.registry.url": "http://schema-registry:8081",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081",
+
+    "auto.create": "false",
+    "auto.evolve": "false",
+    "insert.mode": "insert",
+    "pk.mode": "none",
+    "batch.size": "500",
+
+    "transforms": "route,createdAtToTimestamp,updatedAtToTimestamp,tsMsToTimestamp",
+    "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.route.regex": "pg1\\.public\\.(.*)",
+    "transforms.route.replacement": "$1",
+
+    "transforms.createdAtToTimestamp.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
+    "transforms.createdAtToTimestamp.field": "created_at",
+    "transforms.createdAtToTimestamp.target.type": "Timestamp",
+    "transforms.createdAtToTimestamp.unix.precision": "microseconds",
+
+    "transforms.updatedAtToTimestamp.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
+    "transforms.updatedAtToTimestamp.field": "updated_at",
+    "transforms.updatedAtToTimestamp.target.type": "Timestamp",
+    "transforms.updatedAtToTimestamp.unix.precision": "microseconds",
+
+    "transforms.tsMsToTimestamp.type": "org.apache.kafka.connect.transforms.TimestampConverter$Value",
+    "transforms.tsMsToTimestamp.field": "__ts_ms",
+    "transforms.tsMsToTimestamp.target.type": "Timestamp",
+    "transforms.tsMsToTimestamp.unix.precision": "milliseconds"
+  }
+}
