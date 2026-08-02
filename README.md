@@ -14,7 +14,7 @@ PostgreSQL --(Debezium CDC)--> Kafka --(JDBC Sink Connector)--> ClickHouse
 | Component            | Role                                                        | Image                                    |
 |-----------------------|-------------------------------------------------------------|-------------------------------------------|
 | PostgreSQL            | Source database (logical replication enabled)               | `postgres:16`                              |
-| Kafka                 | Event streaming backbone (KRaft mode, no Zookeeper)           | `confluentinc/cp-kafka:7.6.1`              |
+| Kafka                 | Event streaming backbone (KRaft mode)           | `confluentinc/cp-kafka:7.6.1`              |
 | Schema Registry       | Stores Avro schemas for topic keys/values                    | `confluentinc/cp-schema-registry:7.6.1`    |
 | Kafka Connect         | Runs the Debezium source + JDBC sink connectors              | custom build, see [connect/Dockerfile](connect/Dockerfile) |
 | ClickHouse            | Destination OLAP database                                    | `clickhouse/clickhouse-server:24.3`        |
