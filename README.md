@@ -4,12 +4,7 @@ Real-time change data capture from **PostgreSQL** to **ClickHouse**, streamed th
 
 ## Architecture
 
-```
-PostgreSQL --(Debezium CDC)--> Kafka --(JDBC Sink Connector)--> ClickHouse
-                                  ^  ^
-                                  |  |
-                     Schema Registry  AKHQ (monitoring)
-```
+![Pipeline architecture](docs/pipeline-architecture.svg)
 
 | Component            | Role                                                        | Image                                    |
 |-----------------------|-------------------------------------------------------------|-------------------------------------------|
@@ -102,7 +97,7 @@ sh scripts/check-status.sh
 
 ## Why Avro + Schema Registry
 
-Both connectors use `io.confluent.connect.avro.AvroConverter` for keys and values (see `key.converter`/`value.converter` in [connectors/source/postgres-source.json](connectors/source/postgres-source.json) and [connectors/sink/clickhouse-sink.json](connectors/sink/clickhouse-sink.json)) instead of JSON. Avro encodes each record as compact binary plus a small schema ID, with the full schema stored once in Schema Registry rather than repeated in every message — meaningfully smaller messages and lower Kafka storage/network overhead than schema-carrying JSON, at the cost of needing Schema Registry up before Connect starts (see `depends_on` in [docker-compose.yml](docker-compose.yml)). AKHQ is schema-registry-aware ([akhq/application.yml](akhq/application.yml)) so topics still show up as readable decoded records in the UI rather than raw bytes.
+Both connectors use `io.confluent.connect.avro.AvroConverter` for keys and values instead of JSON — set once at the Kafka Connect worker level (`CONNECT_KEY_CONVERTER`/`CONNECT_VALUE_CONVERTER` in [docker-compose.yml](docker-compose.yml)) and inherited by every connector, rather than repeated in each connector's JSON. Avro encodes each record as compact binary plus a small schema ID, with the full schema stored once in Schema Registry rather than repeated in every message — meaningfully smaller messages and lower Kafka storage/network overhead than schema-carrying JSON, at the cost of needing Schema Registry up before Connect starts (see `depends_on` in [docker-compose.yml](docker-compose.yml)). AKHQ is schema-registry-aware ([akhq/application.yml](akhq/application.yml)) so topics still show up as readable decoded records in the UI rather than raw bytes.
 
 ## How the CDC events are shaped
 
