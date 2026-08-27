@@ -1,7 +1,5 @@
 name: kafka-cdc-jdbc-sink
 
-# Shared env values, anchored here so postgres/clickhouse and the connect service
-# (which forwards these to the connector JSON via EnvVarConfigProvider) stay in sync.
 x-postgres-env: &postgres-env
   POSTGRES_USER: ${POSTGRES_USER:-postgres}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -59,7 +57,6 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:${KAFKA_PORT:-9092}
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      # Fixed cluster ID (base64 UUID) so KRaft storage formatting is reproducible across restarts.
       CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -117,19 +114,13 @@ services:
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
-      # Avro + Schema Registry instead of JSON: smaller messages on the wire and schemas
-      # are tracked/evolved centrally instead of being repeated in every record.
       CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
       CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
       CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
       CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
-      # Lets connector configs pull secrets from this container's env via "${env:VAR_NAME}"
-      # instead of embedding them in connectors/*.json.
       CONNECT_CONFIG_PROVIDERS: env
       CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
-      # Forwarded so connectors/postgres-source.json and connectors/clickhouse-sink.json
-      # can resolve them through the env config provider above.
       <<: *postgres-env
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-cdc_db}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
@@ -148,7 +139,6 @@ services:
       - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
       - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
     environment:
-      # Sets the password for the built-in "default" user (the one the sink connector uses).
       CLICKHOUSE_PASSWORD: *clickhouse-password
     ulimits:
       nofile:
