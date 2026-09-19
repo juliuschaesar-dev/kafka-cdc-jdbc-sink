@@ -8,12 +8,12 @@ Real-time change data capture from **PostgreSQL** to **ClickHouse**, streamed th
 
 | Component            | Role                                                        | Image                                    |
 |-----------------------|-------------------------------------------------------------|-------------------------------------------|
-| PostgreSQL            | Source database (logical replication enabled)               | `postgres:16`                              |
-| Kafka                 | Event streaming backbone (KRaft mode)           | `confluentinc/cp-kafka:7.6.1`              |
-| Schema Registry       | Stores Avro schemas for topic keys/values                    | `confluentinc/cp-schema-registry:7.6.1`    |
+| PostgreSQL            | Source database (logical replication enabled)               | `postgres:17`                              |
+| Kafka                 | Event streaming backbone (KRaft mode)           | `confluentinc/cp-kafka:8.3.0`              |
+| Schema Registry       | Stores Avro schemas for topic keys/values                    | `confluentinc/cp-schema-registry:8.3.0`    |
 | Kafka Connect         | Runs the Debezium source + JDBC sink connectors              | custom build, see [connect/Dockerfile](connect/Dockerfile) |
-| ClickHouse            | Destination OLAP database                                    | `clickhouse/clickhouse-server:24.3`        |
-| AKHQ                  | Web UI for Kafka topics, consumer groups, and connectors      | `tchiotludo/akhq:0.24.0`                   |
+| ClickHouse            | Destination OLAP database                                    | `clickhouse/clickhouse-server:26.8.7.19`   |
+| AKHQ                  | Web UI for Kafka topics, consumer groups, and connectors      | `tchiotludo/akhq:0.28.0`                   |
 
 Two demo tables are replicated end-to-end: `public.customers` and `public.orders`.
 
@@ -95,9 +95,19 @@ sh scripts/check-status.sh
 
 4. Watch it happen live in AKHQ (http://localhost:8080): browse the `pg1.public.customers` / `pg1.public.orders` topics for raw CDC events, and the **Kafka Connect** tab for connector/task status.
 
-## Why Avro + Schema Registry
+## Generating a steady stream of orders
 
-Both connectors use `io.confluent.connect.avro.AvroConverter` for keys and values instead of JSON — set once at the Kafka Connect worker level (`CONNECT_KEY_CONVERTER`/`CONNECT_VALUE_CONVERTER` in [docker-compose.yml](docker-compose.yml)) and inherited by every connector, rather than repeated in each connector's JSON. Avro encodes each record as compact binary plus a small schema ID, with the full schema stored once in Schema Registry rather than repeated in every message — meaningfully smaller messages and lower Kafka storage/network overhead than schema-carrying JSON, at the cost of needing Schema Registry up before Connect starts (see `depends_on` in [docker-compose.yml](docker-compose.yml)). AKHQ is schema-registry-aware ([akhq/application.yml](akhq/application.yml)) so topics still show up as readable decoded records in the UI rather than raw bytes.
+To keep a continuous flow of changes going through the pipeline instead of inserting rows by hand, run the order generator — it inserts one order every 10 seconds with a random existing `customer_id`, random `amount`, and random `status` (`pending`/`shipped`/`completed`/`cancelled`):
+
+```sh
+# from Git Bash / WSL / Linux / macOS
+sh scripts/generate-orders.sh   # set INTERVAL_SECONDS=... to change the pace
+
+# from native PowerShell
+./scripts/generate-orders.ps1
+```
+
+Stop it with Ctrl+C.
 
 ## How the CDC events are shaped
 
@@ -131,7 +141,7 @@ See [connectors/sink/clickhouse-sink.json](connectors/sink/clickhouse-sink.json)
 │   ├── source/postgres-source.json   # Debezium PostgreSQL source connector config
 │   └── sink/clickhouse-sink.json     # Confluent JDBC sink connector config
 ├── akhq/application.yml    # AKHQ cluster/connect configuration
-└── scripts/                # connector registration + status helpers
+└── scripts/                # connector registration, status, and order-generator helpers
 ```
 
 ## Adding another table
@@ -143,8 +153,10 @@ See [connectors/sink/clickhouse-sink.json](connectors/sink/clickhouse-sink.json)
 5. Create the mirrored `ReplacingMergeTree` table (+ `_latest` view) in `clickhouse/init/01-init.sql`.
 6. Re-run `scripts/register-connectors.sh` (or the `.ps1` version) to apply the updated connector configs.
 
-## Tearing down
+## Stopping
 
 ```sh
-docker compose down -v   # -v also drops the named volumes (postgres/kafka/clickhouse data)
+docker compose down
 ```
+
+Use `docker compose down -v` to also remove everything, including the Postgres source data, the Kafka broker log, and the ClickHouse data volume — running the stack again starts from an empty database.

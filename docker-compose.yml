@@ -7,6 +7,11 @@ x-postgres-env: &postgres-env
 
 x-clickhouse-password: &clickhouse-password ${CLICKHOUSE_PASSWORD:-clickhouse}
 
+x-http-healthcheck: &http-healthcheck
+  test: ["CMD-SHELL", "python3 -c \"import os, urllib.request; urllib.request.urlopen(os.environ['HEALTHCHECK_URL'])\""]
+  interval: 5s
+  timeout: 5s
+
 networks:
   cdc-network:
     driver: bridge
@@ -18,7 +23,7 @@ volumes:
 
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: postgres
     networks: [cdc-network]
     ports:
@@ -43,7 +48,7 @@ services:
       retries: 10
 
   kafka:
-    image: confluentinc/cp-kafka:7.6.1
+    image: confluentinc/cp-kafka:8.3.0
     container_name: kafka
     networks: [cdc-network]
     ports:
@@ -69,7 +74,7 @@ services:
       retries: 10
 
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.6.1
+    image: confluentinc/cp-schema-registry:8.3.0
     container_name: schema-registry
     networks: [cdc-network]
     depends_on:
@@ -82,10 +87,9 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
       SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
+      HEALTHCHECK_URL: http://localhost:8081/subjects
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8081/subjects"]
-      interval: 5s
-      timeout: 5s
+      <<: *http-healthcheck
       retries: 15
 
   connect:
@@ -125,14 +129,13 @@ services:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-cdc_db}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
       CLICKHOUSE_PASSWORD: *clickhouse-password
+      HEALTHCHECK_URL: http://localhost:8083/connectors
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors"]
-      interval: 5s
-      timeout: 5s
+      <<: *http-healthcheck
       retries: 20
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.3
+    image: clickhouse/clickhouse-server:26.8.7.19
     container_name: clickhouse
     networks: [cdc-network]
     ports:
@@ -154,7 +157,7 @@ services:
       retries: 10
 
   akhq:
-    image: tchiotludo/akhq:0.24.0
+    image: tchiotludo/akhq:0.28.0
     container_name: akhq
     networks: [cdc-network]
     depends_on:
@@ -170,7 +173,7 @@ services:
       - ./akhq/application.yml:/app/application.yml
 
   connect-init:
-    image: curlimages/curl:8.9.1
+    image: curlimages/curl:8.22.0
     container_name: connect-init
     networks: [cdc-network]
     depends_on:

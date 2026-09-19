@@ -5,7 +5,7 @@
     "tasks.max": "1",
 
     "topics": "pg1.public.customers,pg1.public.orders",
-    "connection.url": "jdbc:clickhouse://clickhouse:8123/${env:CLICKHOUSE_DB}",
+    "connection.url": "jdbc:clickhouse://clickhouse:8123/${env:CLICKHOUSE_DB}?jdbc_ignore_unsupported_values=true",
     "connection.user": "${env:CLICKHOUSE_USER}",
     "connection.password": "${env:CLICKHOUSE_PASSWORD}",
 

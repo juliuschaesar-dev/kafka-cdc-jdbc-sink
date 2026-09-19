@@ -1,16 +1,5 @@
 CREATE DATABASE IF NOT EXISTS cdc_db;
 
--- Debezium's ExtractNewRecordState SMT (delete.handling.mode=rewrite) turns every
--- INSERT/UPDATE/DELETE into a flat "current state" record and adds three bookkeeping
--- columns: __op (c|u|d), __ts_ms (source event time), __deleted (true on delete).
--- ReplacingMergeTree keyed on __ts_ms collapses duplicate rows for the same id down to
--- the latest version in the background; query through the *_latest views below to also
--- get correct results between merges.
---
--- created_at/updated_at/__ts_ms are typed as real DateTime64(3) here, not the raw epoch
--- numbers Debezium emits on the wire — the sink connector converts them before insert
--- (see connectors/sink/clickhouse-sink.json).
-
 CREATE TABLE IF NOT EXISTS cdc_db.customers
 (
     id         Int32,
