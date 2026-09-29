@@ -5,8 +5,18 @@
 $ErrorActionPreference = "Stop"
 
 $PostgresContainer = "postgres"
-$PostgresUser = "postgres"
-$PostgresDb = "cdc_db"
+
+# Credentials come from .env (repo root)
+$envFile = Join-Path $PSScriptRoot "..\.env"
+if (-not (Test-Path $envFile)) { throw ".env not found at $envFile" }
+$envVars = @{}
+Get-Content $envFile | ForEach-Object {
+    if ($_ -match '^\s*([^#=\s]+)\s*=\s*(.*)$') { $envVars[$Matches[1]] = $Matches[2].Trim() }
+}
+$PostgresUser = $envVars["POSTGRES_USER"]
+$PostgresDb = $envVars["POSTGRES_DB"]
+if (-not $PostgresUser -or -not $PostgresDb) { throw "POSTGRES_USER and POSTGRES_DB must be set in .env" }
+
 $IntervalSeconds = 10
 
 Write-Host "Generating one random order every ${IntervalSeconds}s into ${PostgresDb}.orders (Ctrl+C to stop) ..."

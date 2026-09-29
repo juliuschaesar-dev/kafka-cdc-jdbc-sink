@@ -5,8 +5,17 @@
 set -eu
 
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-postgres}"
-POSTGRES_USER="${POSTGRES_USER:-postgres}"
-POSTGRES_DB="${POSTGRES_DB:-cdc_db}"
+
+# Credentials come from .env (repo root)
+ENV_FILE="$(dirname "$0")/../.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+: "${POSTGRES_USER:?POSTGRES_USER must be set in .env}"
+: "${POSTGRES_DB:?POSTGRES_DB must be set in .env}"
+
 INTERVAL_SECONDS="${INTERVAL_SECONDS:-10}"
 
 echo "Generating one random order every ${INTERVAL_SECONDS}s into ${POSTGRES_DB}.orders (Ctrl+C to stop) ..."
