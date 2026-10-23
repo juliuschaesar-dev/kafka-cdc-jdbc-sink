@@ -23,7 +23,7 @@ if (-not $ready) {
 }
 Write-Host "Kafka Connect is up."
 
-# source before sink: harmless either way, but keeps registration order predictable.
+# Source is registered before sink so the sink's topics already exist or are about to be created.
 foreach ($dir in @("source", "sink")) {
     Get-ChildItem -Path (Join-Path $ConnectorsDir $dir) -Filter "*.json" | ForEach-Object {
         $name = $_.BaseName
@@ -32,11 +32,17 @@ foreach ($dir in @("source", "sink")) {
         try {
             Invoke-RestMethod -Uri "$ConnectUrl/connectors/$name" -Method Delete | Out-Null
         } catch {
-            # No previous instance, that's fine.
+            # 404 = no previous instance; anything else is a real failure.
+            if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw }
         }
 
         Write-Host "Registering connector '$name' from $dir/$($_.Name) ..."
-        Invoke-RestMethod -Uri "$ConnectUrl/connectors" -Method Post -ContentType "application/json" -Body $body | Out-Null
+        try {
+            Invoke-RestMethod -Uri "$ConnectUrl/connectors" -Method Post -ContentType "application/json" -Body $body | Out-Null
+        } catch {
+            Write-Error "Failed to register ${name}: $($_.ErrorDetails.Message)"
+            exit 1
+        }
         Write-Host "  -> OK"
     }
 }
