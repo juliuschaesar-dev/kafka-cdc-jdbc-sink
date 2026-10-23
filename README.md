@@ -143,15 +143,6 @@ See [connectors/sink/clickhouse-sink.json](connectors/sink/clickhouse-sink.json)
 └── scripts/                # connector registration, status, and order-generator helpers
 ```
 
-## Adding another table
-
-1. Add the table to `postgres/init/01-init.sql`, with `REPLICA IDENTITY FULL`.
-2. Add it to the publication (or recreate `dbz_publication` to include it).
-3. Add `public.<table>` to `table.include.list` in `connectors/source/postgres-source.json`.
-4. Add the matching topic (`pg1.public.<table>`) to `topics` in `connectors/sink/clickhouse-sink.json`.
-5. Create the mirrored `ReplacingMergeTree` table (+ `_latest` view) in `clickhouse/init/01-init.sh`.
-6. Re-run `scripts/register-connectors.sh` (or the `.ps1` version) to apply the updated connector configs.
-
 ## Stopping
 
 ```sh
